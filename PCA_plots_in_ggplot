@@ -1,0 +1,145 @@
+#Principal component analysis plots (PCA) using Vegan and GGplot2 (w/ stats)
+
+getwd()
+setwd("C:/Users/Justin/Desktop")
+
+library(vegan)
+library(MCMC.OTU)
+library(ggplot2)
+library(ggfortify) #need this to make PCA plots using autoplot
+library(ggpubr)
+library(cowplot)
+
+dat<-read.csv(file="cmb_OTU_100.nr2nd.clstr.sample_revised_pool_posR_sigP01.csv", sep=",", header=TRUE, row.names=1)#Pooled by Positive R^2, sig P (<0.01)
+
+summary(dat)
+str(dat)
+colnames(dat)
+
+###ALL SPECIES PCA
+goods2=purgeOutliers(dat,count.columns=6:5089, otu.cut=0.001,zero.cut=0.2)
+head(goods2) #remove outliers from dataset
+
+conditions=goods2[,1:5] #These are the non-numeric variables like sample, species, site, type, lat
+
+#creating a log-transfromed normalized dataset for PCA:
+nl=startedLog(data=goods2,count.columns=6:length(names(goods2)), logstart=1)
+nl #natural log of data for use with bray-curtis similarity
+
+
+goods.dist=vegdist(nl, method="bray") #make sure you loaded 'vegan' or this will not work!
+goods.pcoa=pcoa(goods.dist)
+
+# PCA:
+pcp=prcomp(nl, retx=TRUE, center=TRUE, scale.=TRUE) 
+goods.pcoa$vectors
+scores=goods.pcoa$vectors
+head(scores)
+summary(goods.pcoa)
+conditions=goods2[,1:5]
+summary(pcp)
+head(pcp)
+head(conditions)
+write.csv(scores, file='pca_scores_allspecies.csv')
+fit<-princomp(nl, cor=TRUE)
+biplot(fit)
+head(nl)
+
+#Get % for PC1 and PC2 to put on the axes from summary(pcp)
+###PCA plots for all species. Change colour= 'site', 'type', 'species', 'lat', etc...; frame.level= confidence interval for ellipses
+
+###TYPE: A tutorial for using ggplot to make PCAs (a difficult thing to figure out without some help!)
+
+t1<-autoplot(prcomp(nl), data=goods2, colour='type', 
+loadings=TRUE, loadings.colour="black", loadings.label=TRUE, loadings.label.size = 4, 
+loadings.label.angle=0, loadings.label.vjust=0.5,
+loadings.label.colour = "black", frame=TRUE, frame.type='t', frame.level=0.95, 
+xlab= "PC1 (43.64%)", ylab= "PC2 (19.33%)")+
+theme_bw()+coord_equal()+
+theme(panel.grid.major = element_blank(), panel.grid.minor= element_blank())
+
+###Site
+s1<-autoplot(prcomp(nl), data=goods2, colour='site', 
+loadings=TRUE, loadings.colour="black", loadings.label=TRUE, loadings.label.size = 4, 
+loadings.label.angle=0, loadings.label.vjust=0.5,
+loadings.label.colour = "black", frame=TRUE, frame.type='t', frame.level=0.95, 
+xlab= "PC1 (43.64%)", ylab= "PC2 (19.33%)")+
+theme_bw()+coord_equal()+
+theme(panel.grid.major = element_blank(), panel.grid.minor= element_blank())
+
+###Lat
+l1<-autoplot(prcomp(nl), data=goods2, colour='lat', 
+loadings=TRUE, loadings.colour="black", loadings.label=TRUE, loadings.label.size = 4, 
+loadings.label.angle=0, loadings.label.vjust=0.5,
+loadings.label.colour = "black", frame=TRUE, frame.type='t', frame.level=0.95, 
+xlab= "PC1 (43.64%)", ylab= "PC2 (19.33%)")+
+theme_bw()+coord_equal()+
+theme(panel.grid.major = element_blank(), panel.grid.minor= element_blank())
+
+###SPECIES
+sp1<-autoplot(prcomp(nl), data=goods2, colour='species', 
+loadings=TRUE, loadings.colour="black", loadings.label=TRUE, loadings.label.size = 4, 
+loadings.label.angle=0, loadings.label.vjust=0.5,
+loadings.label.colour = "black", frame=TRUE, frame.type='t', frame.level=0.95, 
+xlab= "PC1 (43.64%)", ylab= "PC2 (19.33%)")+
+theme_bw()+coord_equal()+
+theme(panel.grid.major = element_blank(), panel.grid.minor= element_blank())
+
+
+all_species_pca_comp<-plot_grid(t1, s1, l1, sp1, labels=c("type", "site", "lat", "species"), nrow=2) #make a plot grid of all the above plots on 1 page
+all_species_pca_comp
+
+all_sp_pca_1<- ggdraw()+ #alternative method to making a plot grid with everything on the same page (gives you more freedom to manipulate stuff)
+	draw_plot(t1, x=0, y=0.5, width=0.5, height=0.5)+
+	draw_plot(s1, x=0.5, y=0.5, width=0.5, height=0.5)+
+	draw_plot(l1, x=0, y=0, width=0.5, height=0.5)+
+	draw_plot(sp1, x=0.5, y=0, width=0.5, height=0.5)+
+	draw_plot_label(label = c("Type", "Site", "Lat", "Species"), size = 15,
+                    x = c(0, 0.5, 0, 0.5), y = c(1.0, 1.0, 0.53, 0.53))
+all_sp_pca_1
+
+ggsave(file='100_all_species_PCA_all_pooled_sigpposR.svg', plot=all_sp_pca_1) #save your entire plot grid in your favorite file type (I needed .svg files to use in inkscape-svg is a vector drawing file)
+
+###PERMANOVA FOR ALL OF THE FIGURES ABOVE####
+###STATS###
+#Type
+# PERMANOVA  
+head(scores)
+head(conditions)
+adonis(scores~type,data=conditions,method="euclidean")
+
+##Species
+# PERMANOVA
+head(scores)
+head(conditions)
+adonis(scores~species,data=conditions,method="euclidean")
+
+##SITE
+# PERMANOVA  
+head(scores)
+head(conditions)
+adonis(scores~site,data=conditions,method="euclidean")
+
+##LAT
+# PERMANOVA  
+head(scores)
+head(conditions)
+adonis(scores~lat,data=conditions,method="euclidean")
+
+##SITE AND SPECIES
+#PERMANOVA
+head(scores)
+head(conditions)
+adonis(scores~site*species,data=conditions,method="euclidean")
+
+##TYPE AND SPECIES
+#PERMANOVA
+head(scores)
+head(conditions)
+adonis(scores~type*species,data=conditions,method="euclidean")
+
+##LAT AND SPECIES
+#PERMANOVA
+head(scores)
+head(conditions)
+adonis(scores~lat*species,data=conditions,method="euclidean") 
